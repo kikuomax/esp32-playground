@@ -8,11 +8,11 @@ I got [this](https://www.waveshare.com/product/displays/e-paper/epaper-3/1.54inc
 
 Front face.
 
-![EDP](./imgs/EDP-front.jpg).
+![EPD front](./imgs/EPD-front.jpg).
 
 Back side.
 
-![EDP back](./imgs/EDP-back.jpg).
+![EPD back](./imgs/EPD-back.jpg).
 
 
 [Here](https://www.waveshare.com/wiki/1.54inch_e-Paper_Module) is information for developers.

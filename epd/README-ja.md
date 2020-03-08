@@ -8,11 +8,11 @@
 
 前面。
 
-![EDP前面](./imgs/EDP-front.jpg).
+![EPD前面](./imgs/EPD-front.jpg).
 
 裏面。
 
-![EDP裏面](./imgs/EDP-back.jpg).
+![EPD裏面](./imgs/EPD-back.jpg).
 
 
 [こちら](https://www.waveshare.com/wiki/1.54inch_e-Paper_Module)に開発者用の情報があります。
@@ -102,7 +102,7 @@ CPOL = CPHA = 0
 - [`0x18`](#ドキュメントされていないレジスタ-0x18)
 - [`0x3C`](#ドキュメントされていないレジスタ-0x3c)
 
-### ドキュメントされてないレジスタ 0x18
+### ドキュメントされていないレジスタ 0x18
 
 [サンプルプログラム](https://github.com/waveshare/e-Paper/blob/8973995e53cb78bac6d1f8a66c2d398c18392f71/RaspberryPi%26JetsonNano/c/lib/e-Paper/EPD_1in54_V2.c#L150-L151)にあるレジスタ`0x18`に関するドキュメンテーションを見つけることはできませんでした。
 サンプルコードではレジスタの値として`0x80`を設定しています。

@@ -311,6 +311,9 @@ static void epd_send_data (
  *
  * The current x address is reset to `start`.
  *
+ * **Limitation:**
+ * `start` and `end` are rounded to a largest multiple of 8 not exceeding it.
+ *
  * @param[in] spi
  *
  *   Handle to an EPD.
@@ -501,6 +504,9 @@ static void epd_clear_all (spi_device_handle_t spi) {
 
 /**
  * @brief Draws a given image on an EPD.
+ *
+ * This function sets X and Y ranges to `[x, x + width - 1]` and
+ * `[y, y + height - 1]` respectively.
  *
  * @param[in] spi
  *

@@ -136,6 +136,28 @@ Ninjaなしでも[hello-worldサンプル](https://github.com/espressif/esp-idf/
 source ./export.sh
 ```
 
+## ESP-IDF 準備のまとめ
+
+一度ESP-IDFをインストールした後は、ESP-IDFを使う際には次のステップを実施してください。
+
+1. `eps-idf`ディレクトリに移動します。
+
+    ```
+    cd eps-idf
+    ```
+
+2. virtual environmentをアクティベートします。
+
+    ```
+    source ./venv/bin/activate
+    ```
+
+3. ESP-IDFコマンドをエクスポートします。
+
+    ```
+    source ./export.sh
+    ```
+
 ## SPI
 
 [このページ](https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/peripherals/spi_master.html)はESP32のSPIマスタドライバについて解説しています。
@@ -248,3 +270,7 @@ ESP32のGPIO番号は[GPIOマトリクス](https://docs.espressif.com/projects/e
 ### ADXL345
 
 [こちら](./adxl345)にADXL345と通信するサンプルコードがあります。
+
+### 電子ペーパーディスプレイ
+
+[こちら](./epd)に電子ペーパーディスプレイと通信するサンプルコードがあります。

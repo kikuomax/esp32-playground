@@ -136,6 +136,28 @@ Before building a project, I had to run the following command,
 source ./export.sh
 ```
 
+## ESP-IDF Preparation Summary
+
+Once you installed ESP-IDF, please take the following steps every time you work with ESP-IDF,
+
+1. Move down to the `eps-idf` directory.
+
+    ```
+    cd eps-idf
+    ```
+
+2. Activate the virtual environment.
+
+    ```
+    source ./venv/bin/activate
+    ```
+
+3. Export ESP-IDF commands.
+
+    ```
+    source ./export.sh
+    ```
+
 ## SPI
 
 [This page](https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/peripherals/spi_master.html) describes SPI Mater Driver for ESP32.
@@ -248,3 +270,7 @@ Here are common [`spi_bus_config_t`](https://docs.espressif.com/projects/esp-idf
 ### ADXL345
 
 [Here](./adxl345) is an example code for communication with an ADXL345.
+
+### E-Paper Display
+
+[Here](./epd) is an example code for communication with an e-paper display.

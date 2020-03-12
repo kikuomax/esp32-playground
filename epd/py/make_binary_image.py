@@ -47,9 +47,9 @@ def convert_row(row, threshold):
     :rtype: list
     """
     if (len(row) % 8) == 0:
-        pixels_by_8 = row.reshape((8, int(len(row) / 8)))
+        pixels_by_8 = row.reshape((int(len(row) / 8), 8))
     else:
-        pixels_by_8 = row.resize((8, int(len(row) / 8)))
+        pixels_by_8 = row.resize((int(len(row) / 8), 8))
     return [pack_pixels(pixels, threshold) for pixels in pixels_by_8]
 
 

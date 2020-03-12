@@ -184,3 +184,33 @@ static const uint8_t IMAGE_DATA[] = {
 サンプルデータ[`main/image_data.h`](main/image_data.h)は以下の画像を変換したものです。
 
 ![imgs/sample.png](imgs/sample.png)
+
+## もっと速いリフレッシュレート
+
+ディスプレイのリフレッシュレートが非常に遅い(およそ2秒)ことが分かりました。
+
+どうやったら速くできるかをググってみると、[こちらの素晴らしい動画](https://benkrasnow.blogspot.com/2017/10/fast-partial-refresh-on-42-e-paper.html)が見つかりました。
+残念ながら動画で説明しているテクニックは私のディスプレイでは使えませんでしたが、とても示唆に富んでいたので何がリフレッシュレートの決め手なのかが分かりました。
+ルックアップテーブル(LUT)です。
+私のディスプレイのLUTを設定するためにはまずはコントローラの完全なデータシートが必要でした。
+ディスプレイの実際の製造元は[Good Display](https://www.good-display.com)で、私のディスプレイのコントローラは`SSD1681`です。
+`SSD1681`のデータシートを次のURLからダウンロードしました(**注意: 非SSL**) http://www.e-paper-display.com/download_detail/downloadsId=825.html 。
+データシートには自分でLUTを設定できるほど細かい説明はなかったので、今度は`SSD1681`と`LUT`をググってみました。
+すると[こちらのフォーラムの投稿](https://forum.arduino.cc/index.php?topic=487007.msg4440297#msg4440297)にたどり着き、LUTを自分で設定する代わりにDisplay Mode 2を試してみることにしました。
+
+### Display Mode 2
+
+Display Mode 2はDisplay Mode 1に比べて少ない電圧更新を行うようです。
+ということでディスプレイをより速く更新できますがわずかに画面焼けが残ります。
+
+私が試した限りでは、ウインドウエリアを動かす(更新するXとYの範囲を変える)とうまくいかないようでした。
+ということで毎フレーム全画面を書き換えなければなりませんでした。
+この処理を簡単にするために、シンプルな[image_buffer](main/image_buffer.h)APIを実装しました。
+
+[こちら](https://youtu.be/6BAUQiaJMjU)にMode 1と2の比較を行う動画をアップロードしました。
+
+### レジスタ 0x18
+
+ところで、[レジスタ`0x18`](#ドキュメントされていないレジスタ-0x18)の説明が`SSD1681`のデータシートにありました。
+温度センサをコントロールするものです。
+私の勝ちです。

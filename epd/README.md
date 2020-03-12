@@ -184,3 +184,33 @@ static const uint8_t IMAGE_DATA[] = {
 An example data [`main/image_data.h`](main/image_data.h) was converted from the following image,
 
 ![imgs/sample.png](imgs/sample.png)
+
+## Faster Refresh Rate
+
+It turned out that the refresh rate of my display was very slow, took about 2 seconds.
+
+I googled for how to make it faster, and I found [this cool video](https://benkrasnow.blogspot.com/2017/10/fast-partial-refresh-on-42-e-paper.html).
+Unfortunately the technique explained in the video was not applicable to my display though, it was so insightful that I could figure out what plays a role in determining a refresh rate.
+It is a look-up-table (LUT).
+First I needed a complete datasheet of the controller of my display to configure an LUT.
+The actual manufacturerer of the display is [Good Display](https://www.good-display.com) and the controller of my display is `SSD1681`.
+I downloaded the datasheet of `SSD1681` from (**CAUTION: non-SSL**) http://www.e-paper-display.com/download_detail/downloadsId=825.html.
+Since the datasheet did not explain an LUT in details enough to configure it myself, I googled `SSD1681` and `LUT` next.
+Then I got [this forum post](https://forum.arduino.cc/index.php?topic=487007.msg4440297#msg4440297) and I determined to give the display mode 2 a shot instead of configuring an LUT myself.
+
+### Display Mode 2
+
+It looks that the display mode 2 conducts fewer voltage updates than the display mode 1.
+So it refreshes the display faster but causes slight ghosting.
+
+As far as I tested it, it did not work well if I moved a window area; i.e., change X and Y ranges to update.
+So I had to refresh the entire display at every frame.
+To facilitate it, I implemented a simple [image_buffer](main/image_buffer.h) API.
+
+[Here](https://youtu.be/6BAUQiaJMjU) I uploaded a video comparing the mode 1 and 2.
+
+### Register 0x18
+
+By the way, there is a description of the [register `0x18`](#undocumented-register-0x18) in the datasheet of `SSD1681`.
+It controls the temperature sensor.
+My guess was good, right?

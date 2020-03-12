@@ -672,6 +672,19 @@ void app_main (void) {
 		image_memory,
 		EPD_WIDTH,
 		EPD_HEIGHT);
+	const struct {
+		int x;
+		int y;
+	} image_positions[] = {
+		{ 0, 12 },
+		{ 136, 50 },
+		{ 24, 130 },
+		{ 64, 20 },
+		{ 96, 90 }
+	};
+	const int num_image_positions =
+		sizeof(image_positions) / sizeof(image_positions[0]);
+	int i;
     // initializes the SPI bus
     ret = spi_bus_initialize(EPD_HOST, &buscfg, DMA_CHAN);
     ESP_ERROR_CHECK(ret);
@@ -682,38 +695,56 @@ void app_main (void) {
 	epd_configure_gpios();
 	// initializes the display
 	epd_initialize(spi);
-	// enables and clears the display mode 2
+	// displays images with the display mode 1
+	epd_enable_display_mode_1(spi);
+	epd_clear_all(spi);
+	epd_refresh_display_mode_1(spi);
+	for (i = 0; i < num_image_positions; ++i) {
+		image_buffer_clear_all(&buffer);
+		image_buffer_draw_image(
+			&buffer,
+			DISPLAY_MODE_1_IMAGE_DATA,
+			8,
+			2,
+			104,
+			10);
+		image_buffer_draw_image(
+			&buffer,
+			EXAMPLE_IMAGE_DATA,
+			image_positions[i].x,
+			image_positions[i].y,
+			64,
+			64);
+		epd_draw_image_buffer(spi, &buffer);
+		epd_refresh_display_mode_1(spi);
+	}
+	vTaskDelay(2000 / portTICK_PERIOD_MS);
+	// displays images with the display mode 2
 	epd_enable_display_mode_2(spi);
 	epd_clear_all(spi);
 	epd_refresh_display_mode_2(spi);
-	// displays a test image at different location
-	// frame 1
-	image_buffer_clear_all(&buffer);
-	image_buffer_draw_image(&buffer, IMAGE_DATA, 64, 64, 64, 64);
-	epd_draw_image_buffer(spi, &buffer);
-	epd_refresh_display_mode_2(spi);
-	// frame 2
-	image_buffer_clear_range(&buffer, 64, 64, 64, 64);
-	image_buffer_draw_image(&buffer, IMAGE_DATA, 128, 128, 64, 64);
-	epd_draw_image_buffer(spi, &buffer);
-	epd_refresh_display_mode_2(spi);
-	// frame 3
-	image_buffer_clear_range(&buffer, 128, 128, 64, 64);
-	image_buffer_draw_image(&buffer, IMAGE_DATA, 0, 0, 64, 64);
-	epd_draw_image_buffer(spi, &buffer);
-	epd_refresh_display_mode_2(spi);
-	// frame 4
-	image_buffer_clear_range(&buffer, 0, 0, 64, 64);
-	image_buffer_draw_image(&buffer, IMAGE_DATA, 96, 32, 64, 64);
-	epd_draw_image_buffer(spi, &buffer);
-	epd_refresh_display_mode_2(spi);
-	// frame 5
-	image_buffer_clear_range(&buffer, 96, 32, 64, 64);
-	image_buffer_draw_image(&buffer, IMAGE_DATA, 24, 136, 64, 64);
-	epd_draw_image_buffer(spi, &buffer);
-	epd_refresh_display_mode_2(spi);
+	for (i = 0; i < num_image_positions; ++i) {
+		image_buffer_clear_all(&buffer);
+		image_buffer_draw_image(
+			&buffer,
+			DISPLAY_MODE_2_IMAGE_DATA,
+			8,
+			2,
+			104,
+			10);
+		image_buffer_draw_image(
+			&buffer,
+			EXAMPLE_IMAGE_DATA,
+			image_positions[i].x,
+			image_positions[i].y,
+			64,
+			64);
+		epd_draw_image_buffer(spi, &buffer);
+		epd_refresh_display_mode_2(spi);
+	}
 	// clears the display to prevent ghosting.
-	// display mode 2 is not good for ghosting prevention.
+	// uses the display mode 1
+	// because the display mode 2 is not good for ghosting prevention.
 	vTaskDelay(5000 / portTICK_PERIOD_MS);
 	epd_enable_display_mode_1(spi);
 	epd_set_border(spi, 1u); // white border

@@ -18,6 +18,7 @@
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 
+#include "image_buffer.h"
 #include "image_data.h"
 
 /** @brief Uses SPI3 (VSPI). */
@@ -108,6 +109,52 @@
 /** @brief Height of the EPD. */
 #define EPD_HEIGHT  200u
 
+/**
+ * @brief Display Update Sequence `0xB1`.
+ *
+ * Represents the following sequence,
+ * 1. Enable clock signal
+ * 2. Load temperature value
+ * 3. Load LUT with DISPLAY Mode 1
+ * 4. Disable clock signal
+ */
+#define EPD_DISPLAY_UPDATE_SEQUENCE_TEMP_LUT_1  0xB1u
+
+/**
+ * @brief Display Update Sequence `0xB9`.
+ *
+ * Represents the following sequence,
+ * 1. Enable clock signal
+ * 2. Load temperature value
+ * 3. Load LUT with DISPLAY Mode 2
+ * 4. Disable clock signal
+ */
+#define EPD_DISPLAY_UPDATE_SEQUENCE_TEMP_LUT_2  0xB9u
+
+/**
+ * @brief Display Update Sequence `0xC7`.
+ *
+ * Represents the following sequence,
+ * 1. Enable clock signal
+ * 2. Enable Analog
+ * 3. Display with DISPLAY Mode 1
+ * 4. Disable Analog
+ * 5. Disable OSC (clock signal?)
+ */
+#define EPD_DISPLAY_UPDATE_SEQUENCE_DISPLAY_1  0xC7u
+
+/**
+ * @brief Display Update Sequence `0xCF`.
+ *
+ * Represents the following sequence,
+ * 1. Enable clock signal
+ * 2. Enable Analog
+ * 3. Display with DISPLAY Mode 2
+ * 4. Disable Analog
+ * 5. Disable OSC (clock signal?)
+ */
+#define EPD_DISPLAY_UPDATE_SEQUENCE_DISPLAY_2  0xCFu
+
 // Define `EPD_SPECIFY_TEMPERATURE` if you want to manually set temperature.
 // #define EPD_MANUAL_TEMPERATURE  1
 
@@ -153,34 +200,8 @@ static const uint8_t DATA_TEMPERATURE_SENSOR_CONTROL_25_C[] = {
 };
 #endif
 
-/**
- * @brief Data for Display Update Control 2 command.
- *
- * Preparing a buffer (?).
- */
-static const uint8_t DATA_DISPLAY_UPDATE_CONTROL_2_INIT_1[] = {
-	// Display update sequence
-	// 1. Enable clock signal
-	// 2. Load temperature value
-	// 3. Load LUT with DISPLAY Mode 1
-	// 4. Disable clock signal
-	0xB1u
-};
-
-/**
- * @brief Data for Display Update Control 2 command.
- *
- * Rendering.
- */
-static const uint8_t DATA_DISPLAY_UPDATE_CONTROL_2_RENDER_1[] = {
-	// Display update sequence
-	// 1. Enable clock signal
-	// 2. Enable Analog
-	// 3. Display with DISPLAY Mode 1
-	// 4. Disable Analog
-	// 5. Disable OSC (clock signal?)
-	0xC7u
-};
+/** @brief Memory block for an `::image_buffer`. */
+static uint8_t image_memory[EPD_HEIGHT * (EPD_WIDTH / 8u)];
 
 /**
  * @brief Resets non-SPI GPIO pins.
@@ -285,7 +306,7 @@ static void epd_send_data_byte (spi_device_handle_t spi, uint8_t data) {
  *
  *   Data to be sent.
  *
- * @param[in] size
+ * @param[in] size_in_bytes
  *
  *   Number of bytes to be sent.
  *   Subjects to the maximum size allowed in a single SPI transaction.
@@ -384,7 +405,8 @@ static void epd_set_y_range (
 /**
  * @brief Sets the border filling of an EPD.
  *
- * Rendering is deferred until `::epd_refresh` is called.
+ * Rendering is deferred until
+ * `::epd_refresh_display_mode_1` or `::epd_refresh_display_mode_2` is called.
  *
  * @param[in] spi
  *
@@ -405,6 +427,11 @@ static void epd_set_border (spi_device_handle_t spi, uint8_t fill) {
 
 /**
  * @brief Initializes an EPD.
+ *
+ * After calling this function, you need to enable a display mode with
+ * either of the following functions,
+ * - `::epd_enable_display_mode_1`
+ * - `::epd_enable_display_mode_2`
  *
  * @param[in] spi
  *
@@ -451,33 +478,131 @@ static void epd_initialize (spi_device_handle_t spi) {
 	epd_send_command(spi, 0x18u);
 	epd_send_data_byte(spi, 0x80u);
 #endif
-	// Display Update Control 2
-	epd_send_command(spi, EPD_COMMAND_DISPLAY_UPDATE_CONTROL_2);
-	epd_send_data(
-		spi,
-		DATA_DISPLAY_UPDATE_CONTROL_2_INIT_1,
-		sizeof(DATA_DISPLAY_UPDATE_CONTROL_2_INIT_1));
-	// Master Activation
-	epd_send_command(spi, EPD_COMMAND_MASTER_ACTIVATION);
-	epd_wait_busy();
 }
 
 /**
- * @brief Refreshes an EPD.
+ * @brief Enables the display mode 1 of an EPD.
+ *
+ * If you want to switch to the display mode 2,
+ * you have to call `::epd_enable_display_mode_2`.
  *
  * @param[in] spi
  *
  *   Handle to an EPD.
  */
-static void epd_refresh (spi_device_handle_t spi) {
-	printf("epd_refresh\n");
+static void epd_enable_display_mode_1 (spi_device_handle_t spi) {
+	printf("epd_enable_display_mode_1\n");
 	epd_send_command(spi, EPD_COMMAND_DISPLAY_UPDATE_CONTROL_2);
-	epd_send_data(
-		spi,
-		DATA_DISPLAY_UPDATE_CONTROL_2_RENDER_1,
-		sizeof(DATA_DISPLAY_UPDATE_CONTROL_2_RENDER_1));
+	epd_send_data_byte(spi, EPD_DISPLAY_UPDATE_SEQUENCE_TEMP_LUT_1);
 	epd_send_command(spi, EPD_COMMAND_MASTER_ACTIVATION);
 	epd_wait_busy();
+}
+
+/**
+ * @brief Enables the display mode 2 of an EPD.
+ *
+ * If you want to switch to the display mode 1,
+ * you have to call `::epd_enable_display_mode_1`.
+ *
+ * @param[in] spi
+ *
+ *   Handle to an EPD.
+ */
+static void epd_enable_display_mode_2 (spi_device_handle_t spi) {
+	printf("epd_enable_display_mode_2\n");
+	epd_send_command(spi, EPD_COMMAND_DISPLAY_UPDATE_CONTROL_2);
+	epd_send_data_byte(spi, EPD_DISPLAY_UPDATE_SEQUENCE_TEMP_LUT_2);
+	epd_send_command(spi, EPD_COMMAND_MASTER_ACTIVATION);
+	epd_wait_busy();
+}
+
+/**
+ * @brief Refreshes an EPD with the display mode 1.
+ *
+ * Before calling this function,
+ * you have to enable the display mode 1 with `::epd_enable_display_mode_1`.
+ *
+ * @param[in] spi
+ *
+ *   Handle to an EPD.
+ */
+static void epd_refresh_display_mode_1 (spi_device_handle_t spi) {
+	printf("epd_refresh_display_mode_1\n");
+	epd_send_command(spi, EPD_COMMAND_DISPLAY_UPDATE_CONTROL_2);
+	epd_send_data_byte(spi, EPD_DISPLAY_UPDATE_SEQUENCE_DISPLAY_1);
+	epd_send_command(spi, EPD_COMMAND_MASTER_ACTIVATION);
+	epd_wait_busy();
+}
+
+/**
+ * @brief Refreshes an EPD with the display mode 2.
+ *
+ * Before calling this function,
+ * you have to enable the display mode 2 with `::epd_enable_display_mode_2`.
+ *
+ * @param[in] spi
+ *
+ *   Handle to an EPD.
+ */
+static void epd_refresh_display_mode_2 (spi_device_handle_t spi) {
+	printf("epd_refresh_display_mode_2\n");
+	epd_send_command(spi, EPD_COMMAND_DISPLAY_UPDATE_CONTROL_2);
+	epd_send_data_byte(spi, EPD_DISPLAY_UPDATE_SEQUENCE_DISPLAY_2);
+	epd_send_command(spi, EPD_COMMAND_MASTER_ACTIVATION);
+	epd_wait_busy();
+}
+
+/**
+ * @brief Clears a given range of an EPD.
+ *
+ * This function sets X and Y ranges to `[x, x + width - 1]` and
+ * `[y, y + height - 1]` respectively.
+ *
+ * Will cause undefined behavior if `left` or `width` is not a multiple of `8`.
+ *
+ * @param[in] spi
+ *
+ *   Handle to an EPD.
+ *
+ * @param[in] left
+ *
+ *   Left position of the area to be cleared.
+ *
+ * @param[in] top
+ *
+ *   Top position of the area to be cleared.
+ *
+ * @param[in] width
+ *
+ *   Width of the are to be cleared.
+ *
+ * @param[in] height
+ *
+ *   Height of the are to be cleared.
+ */
+static void epd_clear_range (
+		spi_device_handle_t spi,
+		uint32_t left,
+		uint32_t top,
+		uint32_t width,
+		uint32_t height)
+{
+	unsigned int i;
+	unsigned int data_size = (unsigned int)(height * (width / 8u));
+	assert((left % 8u) == 0u);
+	assert((width % 8u) == 0u);
+	printf(
+		"epd_clear_range: x=%d, y=%d, w=%d, h=%d\n",
+		(int)left,
+		(int)top,
+		(int)width,
+		(int)height);
+	epd_set_x_range(spi, left, left + (width - 1u));
+	epd_set_y_range(spi, top, top + (height - 1u));
+	epd_send_command(spi, EPD_COMMAND_WRITE_RAM_BW);
+	for (i = 0u; i < data_size; ++i) {
+		epd_send_data_byte(spi, 0xFFu);
+	}
 }
 
 /**
@@ -491,82 +616,40 @@ static void epd_refresh (spi_device_handle_t spi) {
  *   Handle to an EPD.
  */
 static void epd_clear_all (spi_device_handle_t spi) {
-	unsigned int i;
 	printf("epd_clear_all\n");
-	epd_set_x_range(spi, 0u, EPD_WIDTH - 1u);
-	epd_set_y_range(spi, 0u, EPD_HEIGHT - 1u);
-	epd_send_command(spi, EPD_COMMAND_WRITE_RAM_BW);
-	for (i = 0u; i < (EPD_HEIGHT * (EPD_WIDTH / 8u)); ++i) {
-		epd_send_data_byte(spi, 0xFFu);
-	}
-	epd_refresh(spi);
+	epd_clear_range(spi, 0u, 0u, EPD_WIDTH, EPD_HEIGHT);
 }
 
 /**
- * @brief Draws a given image on an EPD.
+ * @brief Draws a given image buffer on an EPD.
  *
- * This function sets X and Y ranges to `[x, x + width - 1]` and
- * `[y, y + height - 1]` respectively.
+ * This function sets the X and Y ranges to `[0, buffer->width-1]` and
+ * `[0, buffer->height-1]` respectively.
  *
  * @param[in] spi
  *
  *   Handle to an EPD.
  *
- * @param[in] x
+ * @param[in] buffer
  *
- *   Left position where the image is to be drawn.
- *
- * @param[in] y
- *
- *   Top position where the image is to be drawn.
- *
- * @param[in] image
- *
- *   Image to be drawn.
- *
- * @param[in] width
- *
- *   Width of the image.
- *
- * @param[in] height
- *
- *   Height of the image.
+ *   Image buffer to draw on the EPD.
  */
-static void epd_draw_image (
-	spi_device_handle_t spi,
-	uint32_t x,
-	uint32_t y,
-	const uint8_t* image,
-	uint32_t width,
-	uint32_t height)
+static void epd_draw_image_buffer (
+		spi_device_handle_t spi,
+		const image_buffer* buffer)
 {
-	unsigned int i;
-	const unsigned int data_size = (unsigned int)(height * (width / 8u));
-	printf("epd_draw_image: x=%d, y=%d, w=%d, h=%d\n", x, y, width, height);
-	epd_set_x_range(spi, x, x + (width - 1u));
-	epd_set_y_range(spi, y, y + (height - 1u));
+	const uint8_t* current;
+	const uint8_t* end;
+	printf("epd_draw_image_buffer\n");
+	epd_set_x_range(spi, 0u, buffer->width - 1u);
+	epd_set_y_range(spi, 0u, buffer->height - 1u);
 	epd_send_command(spi, EPD_COMMAND_WRITE_RAM_BW);
-	for (i = 0u; i < data_size; ++i) {
-		epd_send_data_byte(spi, image[i]);
+	current = image_buffer_begin(buffer);
+	end = image_buffer_end(buffer);
+	while (current != end) {
+		epd_send_data_byte(spi, *current);
+		++current;
 	}
-	epd_refresh(spi);
-}
-
-/**
- * @brief Displays a test image on an EPD.
- *
- * @param[in] spi
- *
- *   Handle to an EPD.
- */
-static void epd_display_test_image (spi_device_handle_t spi) {
-	int i;
-	printf("epd_display_test_image\n");
-	epd_send_command(spi, EPD_COMMAND_WRITE_RAM_BW);
-	for (i = 0; i < 256; ++i) {
-		epd_send_data_byte(spi, (uint8_t)i);
-	}
-	epd_refresh(spi);
 }
 
 void app_main (void) {
@@ -585,6 +668,10 @@ void app_main (void) {
         .spics_io_num = PIN_NUM_CS, // CS is controlled by this program
         .queue_size = 1 // I do not know an appropriate size.
     };
+	image_buffer buffer = image_buffer_initializer(
+		image_memory,
+		EPD_WIDTH,
+		EPD_HEIGHT);
     // initializes the SPI bus
     ret = spi_bus_initialize(EPD_HOST, &buscfg, DMA_CHAN);
     ESP_ERROR_CHECK(ret);
@@ -595,13 +682,41 @@ void app_main (void) {
 	epd_configure_gpios();
 	// initializes the display
 	epd_initialize(spi);
+	// enables and clears the display mode 2
+	epd_enable_display_mode_2(spi);
 	epd_clear_all(spi);
-	// displays a test image
-	epd_display_test_image(spi);
+	epd_refresh_display_mode_2(spi);
 	// displays a test image at different location
-	epd_draw_image(spi, 64u, 64u, IMAGE_DATA, 64u, 64u);
-	// clears the display to prevent ghosting
+	// frame 1
+	image_buffer_clear_all(&buffer);
+	image_buffer_draw_image(&buffer, IMAGE_DATA, 64, 64, 64, 64);
+	epd_draw_image_buffer(spi, &buffer);
+	epd_refresh_display_mode_2(spi);
+	// frame 2
+	image_buffer_clear_range(&buffer, 64, 64, 64, 64);
+	image_buffer_draw_image(&buffer, IMAGE_DATA, 128, 128, 64, 64);
+	epd_draw_image_buffer(spi, &buffer);
+	epd_refresh_display_mode_2(spi);
+	// frame 3
+	image_buffer_clear_range(&buffer, 128, 128, 64, 64);
+	image_buffer_draw_image(&buffer, IMAGE_DATA, 0, 0, 64, 64);
+	epd_draw_image_buffer(spi, &buffer);
+	epd_refresh_display_mode_2(spi);
+	// frame 4
+	image_buffer_clear_range(&buffer, 0, 0, 64, 64);
+	image_buffer_draw_image(&buffer, IMAGE_DATA, 96, 32, 64, 64);
+	epd_draw_image_buffer(spi, &buffer);
+	epd_refresh_display_mode_2(spi);
+	// frame 5
+	image_buffer_clear_range(&buffer, 96, 32, 64, 64);
+	image_buffer_draw_image(&buffer, IMAGE_DATA, 24, 136, 64, 64);
+	epd_draw_image_buffer(spi, &buffer);
+	epd_refresh_display_mode_2(spi);
+	// clears the display to prevent ghosting.
+	// display mode 2 is not good for ghosting prevention.
 	vTaskDelay(5000 / portTICK_PERIOD_MS);
+	epd_enable_display_mode_1(spi);
 	epd_set_border(spi, 1u); // white border
 	epd_clear_all(spi);
+	epd_refresh_display_mode_1(spi);
 }
